@@ -10,7 +10,7 @@
         * {
             margin: 0;
             padding: 0;
-            box-box-sizing: border-box;
+            box-sizing: border-box;
             user-select: none;
         }
 
@@ -25,17 +25,21 @@
             align-items: center;
         }
 
-        /* Background Glow Effects */
-        .glow {
+        /* Container for the background canvas */
+        .dot-field-container {
             position: absolute;
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(138, 43, 226, 0.2) 0%, rgba(0,0,0,0) 70%);
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            inset: 0;
+            width: 100%;
+            height: 100%;
             z-index: 1;
             pointer-events: none;
+        }
+
+        #bgCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
         }
 
         /* Profile Card Container */
@@ -113,23 +117,13 @@
             box-shadow: 0 0 15px rgba(138, 43, 226, 0.6);
             transform: scale(1.02);
         }
-
-        /* Canvas for Mouse Animation */
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 3;
-        }
     </style>
 </head>
 <body>
 
-    <div class="glow"></div>
-    <canvas id="canvas"></canvas>
+    <div class="dot-field-container">
+        <canvas id="bgCanvas"></canvas>
+    </div>
 
     <div class="profile-card">
         <img src="https://api.dicebear.com/7.x/identicon/svg?seed=ledj" alt="Avatar" class="avatar">
@@ -163,80 +157,183 @@
             });
         }
 
-        // --- Mouse Particle Animation ---
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        // --- Interactive Dot Field Implementation ---
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d', { alpha: true });
 
-        let particlesArray = [];
+        // Configuration matching your React props settings
+        const config = {
+            dotRadius: 1.5,
+            dotSpacing: 14,
+            cursorRadius: 500,
+            cursorForce: 0.1,
+            bulgeOnly: true,
+            bulgeStrength: 67,
+            sparkle: false,
+            waveAmplitude: 0,
+            gradientFrom: 'rgba(168, 85, 247, 0.35)',
+            gradientTo: 'rgba(180, 151, 207, 0.25)',
+        };
 
-        // Resize canvas
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const TWO_PI = Math.PI * 2;
+        let dots = [];
+        let mouse = { x: -9999, y: -9999, prevX: -9999, prevY: -9999, speed: 0 };
+        let size = { w: 0, h: 0, offsetX: 0, offsetY: 0 };
+        let engagement = 0;
+        let frameCount = 0;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-        const mouse = {
-            x: null,
-            y: null
+        function doResize() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            size.w = rect.width;
+            size.h = rect.height;
+
+            canvas.width = size.w * dpr;
+            canvas.height = size.h * dpr;
+            canvas.style.width = `${size.w}px`;
+            canvas.style.height = `${size.h}px`;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            size.offsetX = rect.left + window.scrollX;
+            size.offsetY = rect.top + window.scrollY;
+
+            buildDots(size.w, size.h);
         }
 
-        window.addEventListener('mousemove', (event) => {
-            mouse.x = event.x;
-            mouse.y = event.y;
-            
-            // Spawn multiple particles per move for a smoother trail
-            for (let i = 0; i < 2; i++) {
-                particlesArray.push(new Particle());
-            }
-        });
+        function buildDots(w, h) {
+            const step = config.dotRadius + config.dotSpacing;
+            const cols = Math.floor(w / step);
+            const rows = Math.floor(h / step);
+            const padX = (w % step) / 2;
+            const padY = (h % step) / 2;
+            dots = new Array(rows * cols);
+            let idx = 0;
 
-        class Particle {
-            constructor() {
-                this.x = mouse.x;
-                this.y = mouse.y;
-                this.size = Math.random() * 4 + 1;
-                // Slight random drift
-                this.speedX = Math.random() * 1 - 0.5;
-                this.speedY = Math.random() * 1 - 0.5;
-                // Random shades of purple
-                const hues = [270, 280, 290];
-                this.color = `hsla(${hues[Math.floor(Math.random() * hues.length)]}, 85%, 60%, 0.8)`;
-            }
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                if (this.size > 0.1) this.size -= 0.05; // Fade out size
-            }
-            draw() {
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        function handleParticles() {
-            for (let i = 0; i < particlesArray.length; i++) {
-                particlesArray[i].update();
-                particlesArray[i].draw();
-                
-                // Remove tiny particles to keep performance clean
-                if (particlesArray[i].size <= 0.1) {
-                    particlesArray.splice(i, 1);
-                    i--;
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const ax = padX + col * step + step / 2;
+                    const ay = padY + row * step + step / 2;
+                    dots[idx++] = { ax, ay, sx: ax, sy: ay, vx: 0, vy: 0, x: ax, y: ay };
                 }
             }
         }
 
-        function animate() {
-            // Clear canvas with a slight trail effect
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            handleParticles();
-            requestAnimationFrame(animate);
+        function updateMouseSpeed() {
+            const dx = mouse.prevX - mouse.x;
+            const dy = mouse.prevY - mouse.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            mouse.speed += (dist - mouse.speed) * 0.5;
+            if (mouse.speed < 0.001) mouse.speed = 0;
+            mouse.prevX = mouse.x;
+            mouse.prevY = mouse.y;
         }
-        animate();
+
+        setInterval(updateMouseSpeed, 20);
+
+        function tick() {
+            frameCount++;
+            const { w, h } = size;
+            const len = dots.length;
+            const t = frameCount * 0.02;
+
+            const targetEngagement = Math.min(mouse.speed / 5, 1);
+            engagement += (targetEngagement - engagement) * 0.06;
+            if (engagement < 0.001) engagement = 0;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (w === 0 || h === 0) {
+                requestAnimationFrame(tick);
+                return;
+            }
+
+            const grad = ctx.createLinearGradient(0, 0, w, h);
+            grad.addColorStop(0, config.gradientFrom);
+            grad.addColorStop(1, config.gradientTo);
+            ctx.fillStyle = grad;
+
+            const cr = config.cursorRadius;
+            const crSq = cr * cr;
+            const rad = config.dotRadius / 2;
+            const isBulge = config.bulgeOnly;
+
+            ctx.beginPath();
+
+            for (let i = 0; i < len; i++) {
+                const d = dots[i];
+                if (!d) continue;
+                const dx = mouse.x - d.ax;
+                const dy = mouse.y - d.ay;
+                const distSq = dx * dx + dy * dy;
+
+                if (distSq < crSq && engagement > 0.01) {
+                    const dist = Math.sqrt(distSq);
+                    if (isBulge) {
+                        const factor = 1 - dist / cr;
+                        const push = factor * factor * config.bulgeStrength * engagement;
+                        const angle = Math.atan2(dy, dx);
+                        d.sx += (d.ax - Math.cos(angle) * push - d.sx) * 0.15;
+                        d.sy += (d.ay - Math.sin(angle) * push - d.sy) * 0.15;
+                    } else {
+                        const angle = Math.atan2(dy, dx);
+                        const move = (500 / dist) * (mouse.speed * config.cursorForce);
+                        d.vx += Math.cos(angle) * -move;
+                        d.vy += Math.sin(angle) * -move;
+                    }
+                } else if (isBulge) {
+                    d.sx += (d.ax - d.sx) * 0.1;
+                    d.sy += (d.ay - d.sy) * 0.1;
+                }
+
+                if (!isBulge) {
+                    d.vx *= 0.9;
+                    d.vy *= 0.9;
+                    d.x = d.ax + d.vx;
+                    d.y = d.ay + d.vy;
+                    d.sx += (d.x - d.sx) * 0.1;
+                    d.sy += (d.y - d.sy) * 0.1;
+                }
+
+                let drawX = d.sx;
+                let drawY = d.sy;
+                if (config.waveAmplitude > 0) {
+                    drawY += Math.sin(d.ax * 0.03 + t) * config.waveAmplitude;
+                    drawX += Math.cos(d.ay * 0.03 + t * 0.7) * config.waveAmplitude * 0.5;
+                }
+
+                if (config.sparkle) {
+                    const hash = ((i * 2654435761) ^ (frameCount >> 3)) >>> 0;
+                    if ((hash % 100) < 3) {
+                        ctx.moveTo(drawX + rad * 1.8, drawY);
+                        ctx.arc(drawX, drawY, rad * 1.8, 0, TWO_PI);
+                    } else {
+                        ctx.moveTo(drawX + rad, drawY);
+                        ctx.arc(drawX, drawY, rad, 0, TWO_PI);
+                    }
+                } else {
+                    ctx.moveTo(drawX + rad, drawY);
+                    ctx.arc(drawX, drawY, rad, 0, TWO_PI);
+                }
+            }
+
+            ctx.fill();
+            requestAnimationFrame(tick);
+        }
+
+        // Event listeners
+        window.addEventListener('resize', () => {
+            clearTimeout(window.resizeTimer);
+            window.resizeTimer = setTimeout(doResize, 100);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.pageX - size.offsetX;
+            mouse.y = e.pageY - size.offsetY;
+        }, { passive: true });
+
+        // Initialize background physics
+        doResize();
+        requestAnimationFrame(tick);
     </script>
 </body>
 </html>
