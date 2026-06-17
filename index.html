@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ledj__</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background-color: #09070f; /* Deep, near-black purple */
+            color: #ffffff;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Background Glow Effects */
+        .glow {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(138, 43, 226, 0.2) 0%, rgba(0,0,0,0) 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Profile Card Container */
+        .profile-card {
+            background: rgba(15, 12, 22, 0.7);
+            border: 1px solid rgba(138, 43, 226, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 2.5rem;
+            border-radius: 16px;
+            width: 350px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            z-index: 2;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .profile-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(138, 43, 226, 0.5);
+        }
+
+        /* Profile Picture Placeholder */
+        .avatar {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 2px solid #8a2be2;
+            margin-bottom: 1rem;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 0.2rem;
+            background: linear-gradient(45deg, #ffffff, #b983ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #a19da7;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Social Links / Buttons */
+        .links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(25, 20, 35, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.8rem;
+            border-radius: 8px;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #8a2be2;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.6);
+            transform: scale(1.02);
+        }
+
+        /* Canvas for Mouse Animation */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="glow"></div>
+    <canvas id="canvas"></canvas>
+
+    <div class="profile-card">
+        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=ledj" alt="Avatar" class="avatar">
+        
+        <h1>ledj</h1>
+        <p class="subtitle">@ledj__</p>
+
+        <div class="links-container">
+            <div class="btn" onclick="copyDiscord()">
+                <i class="fab fa-discord"></i>
+                <span id="discord-text">ledj__</span>
+            </div>
+            
+            <a href="#" class="btn">
+                <i class="fa-solid fa-code"></i>
+                <span>Projects</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // --- Discord Copy Functionality ---
+        function copyDiscord() {
+            const discordName = "ledj__";
+            navigator.clipboard.writeText(discordName).then(() => {
+                const btnText = document.getElementById("discord-text");
+                btnText.innerText = "Copied!";
+                setTimeout(() => {
+                    btnText.innerText = discordName;
+                }, 2000);
+            });
+        }
+
+        // --- Mouse Particle Animation ---
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let particlesArray = [];
+
+        // Resize canvas
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const mouse = {
+            x: null,
+            y: null
+        }
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.x;
+            mouse.y = event.y;
+            
+            // Spawn multiple particles per move for a smoother trail
+            for (let i = 0; i < 2; i++) {
+                particlesArray.push(new Particle());
+            }
+        });
+
+        class Particle {
+            constructor() {
+                this.x = mouse.x;
+                this.y = mouse.y;
+                this.size = Math.random() * 4 + 1;
+                // Slight random drift
+                this.speedX = Math.random() * 1 - 0.5;
+                this.speedY = Math.random() * 1 - 0.5;
+                // Random shades of purple
+                const hues = [270, 280, 290];
+                this.color = `hsla(${hues[Math.floor(Math.random() * hues.length)]}, 85%, 60%, 0.8)`;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.size > 0.1) this.size -= 0.05; // Fade out size
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function handleParticles() {
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+                
+                // Remove tiny particles to keep performance clean
+                if (particlesArray[i].size <= 0.1) {
+                    particlesArray.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function animate() {
+            // Clear canvas with a slight trail effect
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            handleParticles();
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
